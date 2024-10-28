@@ -34,6 +34,7 @@ public class UserServiceSecurityConfig {
             .csrf().disable()
             .authorizeRequests()
                 .requestMatchers("/auth/login").permitAll() // Allow login endpoint to be accessible
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                 .requestMatchers("/users/**").hasRole("ADMIN") // Protect admin endpoint
                 .anyRequest().authenticated()
             .and()

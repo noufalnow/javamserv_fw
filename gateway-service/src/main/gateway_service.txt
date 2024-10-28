@@ -410,21 +410,6 @@ spring.cloud.gateway.routes[1].uri=lb://property-service
 spring.cloud.gateway.routes[1].predicates[0]=Path=/properties/**
 
 
-# Datasource Configuration
-spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/jsb_cbord_dbusers
-spring.datasource.username=postgres
-spring.datasource.password=postgres
-
-# JPA and Hibernate Configuration
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.hibernate.ddl-auto=update
-
-
-
-springdoc.api-docs.path=/v3/api-docs
-springdoc.swagger-ui.path=/swagger-ui.html
-
 # JWT issuer URI for token validation
 #spring.security.oauth2.resourceserver.jwt.issuer-uri=https://dev-4cvow35oer0svxrn.jp.auth0.com/
 

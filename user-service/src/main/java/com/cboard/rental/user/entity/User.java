@@ -5,9 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.Set;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "users")
+@DynamicUpdate
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

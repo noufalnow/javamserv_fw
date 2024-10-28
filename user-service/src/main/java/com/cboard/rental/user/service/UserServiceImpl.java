@@ -42,13 +42,30 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User updateUser(Long id, User user) {
-        if (userRepository.existsById(id)) {
-            user.setId(id);
-            user.setPassword(passwordEncoder.encode(user.getPassword())); // Ensure password is hashed on update
-            return userRepository.save(user);
+        // Retrieve the existing user from the database
+        User existingUser = userRepository.findById(id).orElse(null);
+        if (existingUser == null) {
+            return null; // User not found
         }
-        return null;
+
+        // Only update non-null fields
+        if (user.getPassword() != null) {
+            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        if (user.getUsername() != null) {
+            existingUser.setUsername(user.getUsername());
+        }
+        if (user.getEmail() != null) {
+            existingUser.setEmail(user.getEmail());
+        }
+        if (user.getRoles() != null) {
+            existingUser.setRoles(user.getRoles());
+        }
+
+        // Save and return the updated user
+        return userRepository.save(existingUser);
     }
+
 
     @Override
     public boolean deleteUser(Long id) {

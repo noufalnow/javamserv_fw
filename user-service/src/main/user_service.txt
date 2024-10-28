@@ -369,6 +369,33 @@ public class JWTService {
 }
 package com.cboard.rental.user.config;
 
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+                .components(new Components()
+                    .addSecuritySchemes("bearerAuth",
+                        new SecurityScheme()
+                            .type(SecurityScheme.Type.HTTP)
+                            .scheme("bearer")
+                            .bearerFormat("JWT")))
+                .info(new Info().title("Your API Title").version("1.0"));
+    }
+}
+
+package com.cboard.rental.user.config;
+
 public class ResourceNotFoundException extends RuntimeException {
     private String resourceName;
     private Object resourceId;
@@ -447,6 +474,7 @@ public class UserServiceSecurityConfig {
             .csrf().disable()
             .authorizeRequests()
                 .requestMatchers("/auth/login").permitAll() // Allow login endpoint to be accessible
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                 .requestMatchers("/users/**").hasRole("ADMIN") // Protect admin endpoint
                 .anyRequest().authenticated()
             .and()
@@ -577,9 +605,10 @@ package com.cboard.rental.user.controller;
 
 import com.cboard.rental.user.entity.User;
 import com.cboard.rental.user.service.UserService;
-import jakarta.validation.Valid;
 import com.cboard.rental.user.dto.UserDTO;
 import com.cboard.rental.user.mapper.UserMapper;
+import com.cboard.rental.user.validation.OnCreate;
+import com.cboard.rental.user.validation.OnUpdate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -594,17 +623,16 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/users")
-@Validated // For validating UserDTO with @Valid
 public class UserController {
 
     @Autowired
     private UserService userService;
 
-    private final UserMapper userMapper = UserMapper.INSTANCE; // Assume this is correctly configured
+    private final UserMapper userMapper = UserMapper.INSTANCE;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody UserDTO userDTO) {
+    public ResponseEntity<UserDTO> createUser(@Validated(OnCreate.class) @RequestBody UserDTO userDTO) {
         User user = userMapper.userDTOToUser(userDTO);
         User createdUser = userService.registerUser(user);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -634,7 +662,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserDTO userDTO) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @Validated(OnUpdate.class) @RequestBody UserDTO userDTO) {
         User user = userMapper.userDTOToUser(userDTO);
         user.setId(id);
         User updatedUser = userService.updateUser(id, user);
@@ -668,10 +696,18 @@ public class UserController {
 }
 package com.cboard.rental.user.dto;
 
+import com.cboard.rental.user.validation.OnCreate;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserDTO {
 
     private Long id;
@@ -680,48 +716,15 @@ public class UserDTO {
     @Size(min = 3, message = "Username must be at least 3 characters long")
     private String username;
 
-    @NotBlank(message = "Email is mandatory")
+    @NotBlank(message = "Email is mandatory", groups = OnCreate.class) // Only required for POST (OnCreate)
     @Email(message = "Email should be valid")
     private String email;
 
-    // You can exclude the password here or use a separate DTO for registration
+    @NotBlank(message = "Password is mandatory", groups = OnCreate.class) // Only required for POST (OnCreate)
+    private String password;
+
     private String[] roles; // List of roles assigned to the user
-
-    // Getters and setters
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String[] getRoles() {
-        return roles;
-    }
-
-    public void setRoles(String[] roles) {
-        this.roles = roles;
-    }
 }
-
 package com.cboard.rental.user.entity;
 
 import jakarta.persistence.*;
@@ -783,9 +786,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.Set;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "users")
+@DynamicUpdate
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -943,7 +948,9 @@ public interface UserMapper {
 
     UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
 
-    @Mapping(target = "roles", source = "user.roles") // Map roles if necessary
+    // Map roles and password explicitly if necessary
+    @Mapping(target = "roles", source = "roles")
+    @Mapping(target = "password", source = "password")
     UserDTO userToUserDTO(User user);
 
     User userDTOToUser(UserDTO userDTO);
@@ -1162,13 +1169,30 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User updateUser(Long id, User user) {
-        if (userRepository.existsById(id)) {
-            user.setId(id);
-            user.setPassword(passwordEncoder.encode(user.getPassword())); // Ensure password is hashed on update
-            return userRepository.save(user);
+        // Retrieve the existing user from the database
+        User existingUser = userRepository.findById(id).orElse(null);
+        if (existingUser == null) {
+            return null; // User not found
         }
-        return null;
+
+        // Only update non-null fields
+        if (user.getPassword() != null) {
+            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        if (user.getUsername() != null) {
+            existingUser.setUsername(user.getUsername());
+        }
+        if (user.getEmail() != null) {
+            existingUser.setEmail(user.getEmail());
+        }
+        if (user.getRoles() != null) {
+            existingUser.setRoles(user.getRoles());
+        }
+
+        // Save and return the updated user
+        return userRepository.save(existingUser);
     }
+
 
     @Override
     public boolean deleteUser(Long id) {
@@ -1220,7 +1244,25 @@ public class UserServiceApplication {
     }
 }
 
-spring.application.name=user-service
+
+package com.cboard.rental.user.validation;
+
+/**
+ * Marker interface for POST operations (e.g., creating new resources).
+ */
+public interface OnCreate {
+    // No fields or methods needed – this is a marker interface
+}
+
+package com.cboard.rental.user.validation;
+
+
+/**
+ * Marker interface for PUT operations (e.g., updating existing resources).
+ */
+public interface OnUpdate {
+    // No fields or methods needed – this is a marker interface
+}spring.application.name=user-service
 # Server Port
 server.port=8091
 
@@ -1248,3 +1290,7 @@ logging.level.org.springframework.security=DEBUG
 
 jwt.secret=4k3AXsvddC06fvwLMtxg/jx99/kc24dV/O0Cybx3gP8=
 jwt.expiration=86400000
+
+
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html

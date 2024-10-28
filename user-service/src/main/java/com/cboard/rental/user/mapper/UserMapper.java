@@ -12,7 +12,9 @@ public interface UserMapper {
 
     UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
 
-    @Mapping(target = "roles", source = "user.roles") // Map roles if necessary
+    // Map roles and password explicitly if necessary
+    @Mapping(target = "roles", source = "roles")
+    @Mapping(target = "password", source = "password")
     UserDTO userToUserDTO(User user);
 
     User userDTOToUser(UserDTO userDTO);

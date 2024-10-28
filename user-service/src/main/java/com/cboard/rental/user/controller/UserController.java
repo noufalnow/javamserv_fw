@@ -2,9 +2,10 @@ package com.cboard.rental.user.controller;
 
 import com.cboard.rental.user.entity.User;
 import com.cboard.rental.user.service.UserService;
-import jakarta.validation.Valid;
 import com.cboard.rental.user.dto.UserDTO;
 import com.cboard.rental.user.mapper.UserMapper;
+import com.cboard.rental.user.validation.OnCreate;
+import com.cboard.rental.user.validation.OnUpdate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,17 +20,16 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/users")
-@Validated // For validating UserDTO with @Valid
 public class UserController {
 
     @Autowired
     private UserService userService;
 
-    private final UserMapper userMapper = UserMapper.INSTANCE; // Assume this is correctly configured
+    private final UserMapper userMapper = UserMapper.INSTANCE;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody UserDTO userDTO) {
+    public ResponseEntity<UserDTO> createUser(@Validated(OnCreate.class) @RequestBody UserDTO userDTO) {
         User user = userMapper.userDTOToUser(userDTO);
         User createdUser = userService.registerUser(user);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -59,7 +59,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserDTO userDTO) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @Validated(OnUpdate.class) @RequestBody UserDTO userDTO) {
         User user = userMapper.userDTOToUser(userDTO);
         user.setId(id);
         User updatedUser = userService.updateUser(id, user);
