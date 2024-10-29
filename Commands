@@ -16,3 +16,6 @@ curl -X POST http://localhost:8091/auth/login      -d "username=admin"      -d "
 
 curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMTA3OTQzLCJleHAiOjE3MzAxOTQzNDN9.P3_-UDB9NYeTs4X2-DEnonQtGZUERb5QOiiQr083tQk" http://localhost:8080/users/admin-endpoint
 
+
+//http://localhost:8091/v3/api-docs
+http://localhost:8080/user-service/swagger-ui/index.html

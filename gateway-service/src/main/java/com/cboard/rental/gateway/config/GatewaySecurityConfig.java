@@ -35,10 +35,7 @@ public class GatewaySecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
-                .pathMatchers("/user-service/v3/api-docs/**", "/user-service/swagger-ui/**", "/user-service/swagger-ui.html").permitAll()
-                .pathMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                .pathMatchers("/user-service/v3/api-docs/**", "/user-service/swagger-ui.html", "/user-service/swagger-ui/**").permitAll()
-                .pathMatchers("/user-service/v3/api-docs/swagger-config", "/user-service/v3/api-docs", "/v3/api-docs/swagger-config","/v3/api-docs").permitAll()
+                .pathMatchers("/user-service/swagger-ui/**").permitAll()
                 .pathMatchers("/users/**").hasAuthority("ROLE_ADMIN") // Restore ROLE_ADMIN authority check
                 .anyExchange().authenticated())
             .build();
