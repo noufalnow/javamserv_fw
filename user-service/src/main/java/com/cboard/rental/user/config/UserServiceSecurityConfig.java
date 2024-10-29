@@ -35,6 +35,8 @@ public class UserServiceSecurityConfig {
             .authorizeRequests()
                 .requestMatchers("/auth/login").permitAll() // Allow login endpoint to be accessible
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+                .requestMatchers("/user-service/v3/api-docs/**", "/user-service/swagger-ui.html", "/user-service/swagger-ui/**").permitAll()
+                .requestMatchers("/user-service/v3/api-docs/swagger-config", "/user-service/v3/api-docs", "/v3/api-docs/swagger-config","/v3/api-docs").permitAll()
                 .requestMatchers("/users/**").hasRole("ADMIN") // Protect admin endpoint
                 .anyRequest().authenticated()
             .and()

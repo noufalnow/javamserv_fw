@@ -27,19 +27,22 @@ public class GatewaySecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtDecoder(jwtDecoder())
-                .jwtAuthenticationConverter(new CustomJwtAuthenticationConverter())));
+        http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
+                .jwtDecoder(jwtDecoder())
+                .jwtAuthenticationConverter(new CustomJwtAuthenticationConverter())));  // Restore custom converter
 
         return http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
-                .pathMatchers("/users/**").hasAuthority("ROLE_ADMIN")
+                .pathMatchers("/user-service/v3/api-docs/**", "/user-service/swagger-ui/**", "/user-service/swagger-ui.html").permitAll()
+                .pathMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+                .pathMatchers("/user-service/v3/api-docs/**", "/user-service/swagger-ui.html", "/user-service/swagger-ui/**").permitAll()
+                .pathMatchers("/user-service/v3/api-docs/swagger-config", "/user-service/v3/api-docs", "/v3/api-docs/swagger-config","/v3/api-docs").permitAll()
+                .pathMatchers("/users/**").hasAuthority("ROLE_ADMIN") // Restore ROLE_ADMIN authority check
                 .anyExchange().authenticated())
             .build();
     }
-
-
 
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
