@@ -13,11 +13,11 @@ import com.cboard.rental.tenants.config.JwtAuthenticationFilter;
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
-public class PropertyServiceSecurityConfig {
+public class TenantsServiceSecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public PropertyServiceSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public TenantsServiceSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
