@@ -1,0 +1,626 @@
+package com.cboard.rental.property.config;
+
+import ch.qos.logback.classic.pattern.ThrowableProxyConverter;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
+
+public class CustomExceptionConverter extends ThrowableProxyConverter {
+   
+	protected void render(ThrowableProxy tp, ILoggingEvent event, StringBuilder builder) {
+	    StackTraceElement[] stackTrace = tp.getThrowable().getStackTrace();
+	    
+	    for (StackTraceElement element : stackTrace) {
+	        String className = element.getClassName();
+	        // Exclude Spring, Hibernate, and JDK-related stack traces
+	        if (className.startsWith("com.example.tenant_service") 
+	                || className.startsWith("java.base")) {
+	            builder.append(element.toString()).append(System.lineSeparator());
+	        }
+	    }
+	}
+
+
+}
+
+package com.cboard.rental.property.config;
+
+import java.util.Map;
+
+public class CustomValidationException extends RuntimeException {
+
+    private final Map<String, String> errors;
+
+    public CustomValidationException(Map<String, String> errors) {
+        super("Validation failed with errors: " + errors.toString());
+        this.errors = errors;
+    }
+
+    public Map<String, String> getErrors() {
+        return errors;
+    }
+}
+
+package com.cboard.rental.property.config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        log.error("Resource not found: {}", ex.getMessage(), ex);
+        ErrorResponse errorResponse = new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            ex.getMessage(),
+            "Resource Not Found",
+            "ERR404", // Example error code
+            ex.getResourceName(),
+            ex.getResourceId()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ValidationErrorResponse> handleConstraintViolationException(ConstraintViolationException ex) {
+        log.error("Validation failed: {}", ex.getMessage(), ex);
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+            errors.put(violation.getPropertyPath().toString(), violation.getMessage());
+        }
+        ValidationErrorResponse errorResponse = new ValidationErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            "Validation failed",
+            errors
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ValidationErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
+        log.error("Method argument validation failed: {}", ex.getMessage(), ex);
+        Map<String, String> errors = new HashMap<>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            errors.put(error.getField(), error.getDefaultMessage() + " (rejected value: " + error.getRejectedValue() + ")");
+        }
+        ValidationErrorResponse errorResponse = new ValidationErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            "Validation failed",
+            errors
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        String rootCauseMessage = ex.getRootCause() != null ? ex.getRootCause().getMessage() : "Unknown error";
+        log.error("Data integrity violation: {}", rootCauseMessage, ex);
+        ErrorResponse errorResponse = new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            "Data integrity violation: " + rootCauseMessage,
+            "Data Integrity Violation",
+            "ERR001", // Example error code
+            null,
+            null
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+        log.error("An unexpected error occurred: {}", ex.getMessage(), ex);
+        ErrorResponse errorResponse = new ErrorResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            "An unexpected error occurred",
+            "Unexpected Error",
+            "ERR500", // Example error code
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    // ErrorResponse class with a timestamp and error code
+    public static class ErrorResponse {
+        private int status;
+        private String message;
+        private String errorType;
+        private String errorCode;
+        private String resource;
+        private Object resourceId;
+        private LocalDateTime timestamp;
+
+        public ErrorResponse(int status, String message, String errorType, String errorCode, String resource, Object resourceId) {
+            this.status = status;
+            this.message = message + " - Error occurred"; // Updated for clarity
+            this.errorType = errorType;
+            this.errorCode = errorCode;
+            this.resource = resource;
+            this.resourceId = resourceId;
+            this.timestamp = LocalDateTime.now(); // Set current time for errors
+        }
+
+        // Getters and setters
+        public int getStatus() {
+            return status;
+        }
+
+        public void setStatus(int status) {
+            this.status = status;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public String getErrorType() {
+            return errorType;
+        }
+
+        public void setErrorType(String errorType) {
+            this.errorType = errorType;
+        }
+
+        public String getErrorCode() {
+            return errorCode;
+        }
+
+        public void setErrorCode(String errorCode) {
+            this.errorCode = errorCode;
+        }
+
+        public String getResource() {
+            return resource;
+        }
+
+        public void setResource(String resource) {
+            this.resource = resource;
+        }
+
+        public Object getResourceId() {
+            return resourceId;
+        }
+
+        public void setResourceId(Object resourceId) {
+            this.resourceId = resourceId;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(LocalDateTime timestamp) {
+            this.timestamp = timestamp;
+        }
+    }
+
+    // ValidationErrorResponse class with validation errors
+    public static class ValidationErrorResponse extends ErrorResponse {
+        private Map<String, String> validationErrors;
+
+        public ValidationErrorResponse(int status, String message, Map<String, String> validationErrors) {
+            super(status, message, "Validation Error", "ERR400", null, null);
+            this.validationErrors = validationErrors;
+        }
+
+        public Map<String, String> getValidationErrors() {
+            return validationErrors;
+        }
+
+        public void setValidationErrors(Map<String, String> validationErrors) {
+            this.validationErrors = validationErrors;
+        }
+    }
+}package com.cboard.rental.property.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+
+@Configuration
+@EnableWebFluxSecurity
+public class PropertyServiceSecurityConfig {
+
+    @Value("${jwt.secret}")
+    private String secretKey;
+
+    @Bean
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtDecoder(jwtDecoder())));
+        
+        return http
+            .authorizeExchange(exchanges -> exchanges
+                .anyExchange().authenticated())
+            .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            .build();
+    }
+
+    @Bean
+    public ReactiveJwtDecoder jwtDecoder() {
+        SecretKey key = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        return NimbusReactiveJwtDecoder.withSecretKey(key).build();
+    }
+}
+package com.cboard.rental.property.config;
+
+public class ResourceNotFoundException extends RuntimeException {
+    private String resourceName;
+    private Object resourceId;
+
+    // Existing constructor
+    public ResourceNotFoundException(String message, String resourceName, Object resourceId) {
+        super(message);
+        this.resourceName = resourceName;
+        this.resourceId = resourceId;
+    }
+
+    // New constructor for convenience
+    public ResourceNotFoundException(String resourceName, Object resourceId) {
+        super("Resource not found");
+        this.resourceName = resourceName;
+        this.resourceId = resourceId;
+    }
+
+    // Getters and setters
+    public String getResourceName() {
+        return resourceName;
+    }
+
+    public Object getResourceId() {
+        return resourceId;
+    }
+}
+package com.cboard.rental.property.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.cboard.rental.property.dto.PropertyDTO;
+import com.cboard.rental.property.service.PropertyService;
+
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+
+@RestController
+@RequestMapping("/properties")
+public class PropertyController {
+    @Autowired
+    private PropertyService propertyService;
+
+    @PostMapping
+    public ResponseEntity<PropertyDTO> createProperty(@RequestBody PropertyDTO propertyDTO) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(propertyService.createProperty(propertyDTO));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PropertyDTO>> getAllProperties() {
+        return ResponseEntity.ok(propertyService.getAllProperties());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PropertyDTO> getPropertyById(@PathVariable Long id) {
+        return ResponseEntity.ok(propertyService.getPropertyById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<PropertyDTO> updateProperty(@PathVariable Long id, @RequestBody PropertyDTO propertyDTO) {
+        return ResponseEntity.ok(propertyService.updateProperty(id, propertyDTO));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProperty(@PathVariable Long id) {
+        propertyService.deleteProperty(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+package com.cboard.rental.property.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BuildingDTO {
+    private Long id;
+    private String buildingName;
+}
+package com.cboard.rental.property.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PropertyDTO {
+    private Long id;
+    private String propertyName;
+    private String address;
+    private Long buildingId;
+}
+package com.cboard.rental.property.entity;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import org.hibernate.annotations.DynamicUpdate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "buildings")
+@DynamicUpdate
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Building {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String buildingName;
+    
+    @OneToMany(mappedBy = "building")
+    private List<Property> properties = new ArrayList<>();
+
+    // Getters and setters...
+}
+package com.cboard.rental.property.entity;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import org.hibernate.annotations.DynamicUpdate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+@Entity
+@Table(name = "properties")
+@DynamicUpdate
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Property {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String propertyName;
+    
+    private String address;
+    
+    @ManyToOne
+    @JoinColumn(name = "building_id", nullable = false)
+    private Building building;
+
+    // Getters and setters...
+}
+package com.cboard.rental.property.mapper;
+
+import com.cboard.rental.property.dto.BuildingDTO;
+import com.cboard.rental.property.entity.Building;
+import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
+
+@Mapper
+public interface BuildingMapper {
+
+    BuildingMapper INSTANCE = Mappers.getMapper(BuildingMapper.class);
+
+    BuildingDTO buildingToBuildingDTO(Building building);
+
+    Building buildingDTOToBuilding(BuildingDTO buildingDTO);
+}
+package com.cboard.rental.property.mapper;
+
+import com.cboard.rental.property.dto.PropertyDTO;
+import com.cboard.rental.property.entity.Property;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
+
+@Mapper
+public interface PropertyMapper {
+
+    PropertyMapper INSTANCE = Mappers.getMapper(PropertyMapper.class);
+
+    // Map building relationship to buildingId in DTO
+    @Mapping(target = "buildingId", source = "building.id")
+    PropertyDTO propertyToPropertyDTO(Property property);
+
+    // Map buildingId in DTO back to Building entity in Property
+    @Mapping(target = "building.id", source = "buildingId")
+    Property propertyDTOToProperty(PropertyDTO propertyDTO);
+}
+package com.cboard.rental.property;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+
+@SpringBootApplication
+@EnableDiscoveryClient
+public class PropertyServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(PropertyServiceApplication.class, args);
+    }
+}package com.cboard.rental.property.repository;
+
+
+import com.cboard.rental.property.entity.Building;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface BuildingRepository extends JpaRepository<Building, Long> {
+}
+package com.cboard.rental.property.repository;
+
+import com.cboard.rental.property.entity.Property;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface PropertyRepository extends JpaRepository<Property, Long> {
+}
+package com.cboard.rental.property.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.cboard.rental.property.config.ResourceNotFoundException;
+import com.cboard.rental.property.dto.PropertyDTO;
+import com.cboard.rental.property.entity.Property;
+import com.cboard.rental.property.mapper.PropertyMapper;
+import com.cboard.rental.property.repository.BuildingRepository;
+import com.cboard.rental.property.repository.PropertyRepository;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+public class PropertyService {
+    @Autowired
+    private PropertyRepository propertyRepository;
+
+    @Autowired
+    private BuildingRepository buildingRepository;
+
+    private final PropertyMapper mapper = PropertyMapper.INSTANCE;
+
+    public PropertyDTO createProperty(PropertyDTO propertyDTO) {
+        Property property = mapper.propertyDTOToProperty(propertyDTO);
+        property.setBuilding(buildingRepository.findById(propertyDTO.getBuildingId())
+                .orElseThrow(() -> new ResourceNotFoundException("Building", propertyDTO.getBuildingId())));
+        Property savedProperty = propertyRepository.save(property);
+        return mapper.propertyToPropertyDTO(savedProperty);
+    }
+
+    public List<PropertyDTO> getAllProperties() {
+        return propertyRepository.findAll().stream()
+                .map(mapper::propertyToPropertyDTO)
+                .collect(Collectors.toList());
+    }
+
+    public PropertyDTO getPropertyById(Long id) {
+        Property property = propertyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Property", id));
+        return mapper.propertyToPropertyDTO(property);
+    }
+
+    public PropertyDTO updateProperty(Long id, PropertyDTO propertyDTO) {
+        Property property = propertyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Property", id));
+        property.setPropertyName(propertyDTO.getPropertyName());
+        property.setAddress(propertyDTO.getAddress());
+        property.setBuilding(buildingRepository.findById(propertyDTO.getBuildingId())
+                .orElseThrow(() -> new ResourceNotFoundException("Building", propertyDTO.getBuildingId())));
+        
+        Property updatedProperty = propertyRepository.save(property);
+        return mapper.propertyToPropertyDTO(updatedProperty);
+    }
+
+    public void deleteProperty(Long id) {
+        propertyRepository.deleteById(id);
+    }
+}
+spring.application.name=property-service
+
+# Server Port
+server.port=8092
+
+# Datasource Configuration
+spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/jsb_cbord_dbprop
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+
+# JPA and Hibernate Configuration
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
+
+# Eureka Client Configuration
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+eureka.client.register-with-eureka=true
+eureka.client.fetch-registry=true
+
+# Override Bean Definitions if Necessary
+spring.main.allow-bean-definition-overriding=true
+
+# Logging Level for Security (Debugging Purposes)
+logging.level.org.springframework.security=DEBUG
+
+# JWT Configuration
+jwt.secret=4k3AXsvddC06fvwLMtxg/jx99/kc24dV/O0Cybx3gP8=
+jwt.expiration=86400000
+
+# SpringDoc OpenAPI Configuration for Swagger
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html

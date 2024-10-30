@@ -2,13 +2,25 @@
 
 ## Merge files 
 
-find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/user-service/src/main/ -type f -name "*.*" ! -name "user_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/user-service/src/main/user_service.txt && find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/gateway-service/src/main/ -type f -name "*.*" ! -name "gateway_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/gateway-service/src/main/gateway_service.txt
+find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/user-service/src/main/ -type f -name "*.*" ! -name "user_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/user-service/src/main/user_service.txt 
+
+&& 
+
+find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/gateway-service/src/main/ -type f -name "*.*" ! -name "gateway_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/gateway-service/src/main/gateway_service.txt
+
+&&
+
+find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/property-service/src/main/ -type f -name "*.*" ! -name "property_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/property-service/src/main/property_service.txt
+
 
 ## Generate Tocken 
 
 
 curl -X POST http://localhost:8091/auth/login      -d "username=admin"      -d "password=adminPassword"      -H "Content-Type: application/x-www-form-urlencoded"
-{"token":"Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiUk9MRV9BRE1JTiIsInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMTA2MzkyLCJleHAiOjE3MzAxOTI3OTJ9.AOGG8n8N2wCi4Qx699Y3JMnbA2oPIySNzXKSK1u4R2Q"}
+
+{
+  "token": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMjYzNDk3fQ.EiroIrZ_QrROouz5Tzi1XxF1xNyOlGGR2O1HkXMJ5ww"
+}
 
 
 ## Apply 
