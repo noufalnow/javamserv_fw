@@ -8,9 +8,9 @@ import java.util.List;
 
 @Repository
 public interface ContractRepository extends JpaRepository<Contract, Long> {
-    // Custom query to retrieve contracts by tenant ID
-    List<Contract> findByTenantId(Long tenantId);
     
+    List<Contract> findByTenantIdAndPropertyId(Long tenantId, Long propertyId);
+    List<Contract> findByTenantId(Long tenantId);
     List<Contract> findByPropertyId(Long propertyId);
     
 }

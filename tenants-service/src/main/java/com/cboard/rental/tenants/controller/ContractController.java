@@ -30,9 +30,12 @@ public class ContractController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'LANDLORD')")
-    public ResponseEntity<List<ContractDTO>> getAllContracts() {
-        return ResponseEntity.ok(contractService.getAllContracts());
+    public ResponseEntity<List<ContractDTO>> getAllContracts(
+            @RequestParam(required = false) Long tenantId,
+            @RequestParam(required = false) Long propertyId) {
+        return ResponseEntity.ok(contractService.getAllContracts(tenantId, propertyId));
     }
+
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'LANDLORD')")

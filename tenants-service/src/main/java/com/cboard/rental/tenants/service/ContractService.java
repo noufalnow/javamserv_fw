@@ -48,11 +48,25 @@ public class ContractService {
         return mapper.toDTO(savedContract);
     }
 
-    public List<ContractDTO> getAllContracts() {
-        return contractRepository.findAll().stream()
+    public List<ContractDTO> getAllContracts(Long tenantId, Long propertyId) {
+        List<Contract> contracts;
+
+        if (tenantId != null && propertyId != null) {
+            contracts = contractRepository.findByTenantIdAndPropertyId(tenantId, propertyId);
+        } else if (tenantId != null) {
+            contracts = contractRepository.findByTenantId(tenantId);
+        } else if (propertyId != null) {
+            contracts = contractRepository.findByPropertyId(propertyId);
+        } else {
+            contracts = contractRepository.findAll();
+        }
+
+        return contracts.stream()
                 .map(mapper::toDTO)
                 .collect(Collectors.toList());
     }
+
+
 
     public ContractDTO getContractById(Long id) {
         Contract contract = contractRepository.findById(id)
