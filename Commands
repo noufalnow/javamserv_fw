@@ -19,14 +19,15 @@ find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/property-serv
 curl -X POST http://localhost:8091/auth/login      -d "username=admin"      -d "password=adminPassword"      -H "Content-Type: application/x-www-form-urlencoded"
 
 {
-  "token": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMjYzNDk3fQ.EiroIrZ_QrROouz5Tzi1XxF1xNyOlGGR2O1HkXMJ5ww"
+  "token": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMjYzNDk3fQ.EiroIrZ_QrROouz5Tzi1XxF1xNyOlGGR2O1HkXMJ5ww
+  "
 }
 
 
 ## Apply 
 
 
-curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMTA3OTQzLCJleHAiOjE3MzAxOTQzNDN9.P3_-UDB9NYeTs4X2-DEnonQtGZUERb5QOiiQr083tQk" http://localhost:8080/users/admin-endpoint
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzMwMjYzNDk3fQ.EiroIrZ_QrROouz5Tzi1XxF1xNyOlGGR2O1HkXMJ5ww" http://localhost:8080/users/admin-endpoint
 
 
 //http://localhost:8091/v3/api-docs

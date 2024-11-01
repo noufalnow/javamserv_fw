@@ -1,5 +1,6 @@
 package com.cboard.rental.tenants.service;
 
+import com.cboard.rental.tenants.clients.PropertyServiceClient;
 import com.cboard.rental.tenants.config.ResourceNotFoundException;
 import com.cboard.rental.tenants.dto.ContractDTO;
 import com.cboard.rental.tenants.entity.Contract;
@@ -9,7 +10,6 @@ import com.cboard.rental.tenants.repository.ContractRepository;
 import com.cboard.rental.tenants.repository.TenantsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,22 +25,17 @@ public class ContractService {
     private TenantsRepository tenantsRepository;
 
     @Autowired
-    private RestTemplate restTemplate;  // For inter-service communication
+    private PropertyServiceClient propertyServiceClient;
 
     private final ContractMapper mapper = ContractMapper.INSTANCE;
-
-    // Property-service URL
-    private static final String PROPERTY_SERVICE_URL = "http://gateway-service/property-service/properties/";
 
     public ContractDTO createContract(ContractDTO contractDTO) {
         // Validate tenant
         Tenants tenant = tenantsRepository.findById(contractDTO.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant", contractDTO.getTenantId()));
 
-        // Validate property from property-service
-        boolean propertyExists = restTemplate.getForObject(
-            PROPERTY_SERVICE_URL + contractDTO.getPropertyId() + "/exists", Boolean.class
-        );
+        // Validate property from property-service using Feign client
+        Boolean propertyExists = propertyServiceClient.doesPropertyExist(contractDTO.getPropertyId());
         if (Boolean.FALSE.equals(propertyExists)) {
             throw new ResourceNotFoundException("Property", contractDTO.getPropertyId());
         }

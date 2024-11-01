@@ -10,4 +10,7 @@ import java.util.List;
 public interface ContractRepository extends JpaRepository<Contract, Long> {
     // Custom query to retrieve contracts by tenant ID
     List<Contract> findByTenantId(Long tenantId);
+    
+    List<Contract> findByPropertyId(Long propertyId);
+    
 }

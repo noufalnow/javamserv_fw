@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.cboard.rental.property.config.ResourceNotFoundException;
 import com.cboard.rental.property.dto.PropertyDTO;
 import com.cboard.rental.property.service.PropertyService;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,6 +45,19 @@ public class PropertyController {
     public ResponseEntity<PropertyDTO> getPropertyById(@PathVariable Long id) {
         return ResponseEntity.ok(propertyService.getPropertyById(id));
     }
+    
+    @GetMapping("/{propertyId}/exists")
+    public ResponseEntity<Boolean> doesPropertyExist(@PathVariable Long propertyId) {
+        // Logic to check if the property exists
+        try {
+            PropertyDTO property = propertyService.getPropertyById(propertyId);
+            return ResponseEntity.ok(property != null); // Return true if property exists
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.ok(false); // Return false if property is not found
+        }
+    }
+
+    
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'LANDLORD')")
