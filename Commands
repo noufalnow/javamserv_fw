@@ -12,6 +12,15 @@ find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/gateway-servi
 
 find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/property-service/src/main/ -type f -name "*.*" ! -name "property_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/property-service/src/main/property_service.txt
 
+&&
+
+find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/messaging-service/src/main/ -type f -name "*.*" ! -name "messaging_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/messaging-service/src/main/messaging_service.txt
+
+&&
+
+find /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/tenants-service/src/main/ -type f -name "*.*" ! -name "tenants_service.txt" | sort | xargs cat > /home/noufal/eclipse-workspace-java/javamserv_fw/javamserv_fw/tenants-service/src/main/tenants_service.txt 
+
+
 
 ## Generate Tocken 
 

@@ -1,0 +1,532 @@
+package com.cboard.rental.messaging.config;
+
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@EnableKafka
+@Configuration
+public class KafkaConfig {
+
+    private final String bootstrapServers = "localhost:9092";
+
+    // Producer configuration
+    @Bean
+    public ProducerFactory<String, Object> producerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true); // Enable reliability
+        configProps.put(ProducerConfig.ACKS_CONFIG, "all"); // Ensure all brokers acknowledge messages
+        configProps.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE); // Retry indefinitely
+        configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5); // Required for idempotence
+        configProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000); // 30 seconds
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
+    public KafkaTemplate<String, Object> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+}
+package com.cboard.rental.messaging.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.web.SecurityFilterChain;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Configuration
+@EnableWebSecurity
+public class MessagingSecurityConfig {
+
+	@Value("${jwt.secret}")
+	private String secretKey;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf().disable()
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/your-open-paths/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+        return http.build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        SecretKey secretKey = new SecretKeySpec(this.secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        return NimbusJwtDecoder.withSecretKey(secretKey).build();
+    }
+
+    private Converter<Jwt, JwtAuthenticationToken> jwtAuthenticationConverter() {
+        return jwt -> new JwtAuthenticationToken(jwt, extractAuthorities(jwt));
+    }
+
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+        List<String> roles = jwt.getClaimAsStringList("roles");
+        return roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .collect(Collectors.toList());
+    }
+}
+package com.cboard.rental.messaging.controller;
+
+import com.cboard.rental.messaging.events.DuePaymentEvent;
+import com.cboard.rental.messaging.MessagingProducer;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class DuePaymentController {
+
+    private final MessagingProducer messagingProducer;
+
+    public DuePaymentController(MessagingProducer messagingProducer) {
+        this.messagingProducer = messagingProducer;
+    }
+
+    @PostMapping("/api/v1/due-payments")
+    public void handleDuePayment(@RequestBody DuePaymentEvent event) {
+    	
+    	//System.out.println("Received in controller DuePaymentEvent: " + event);
+    	
+        messagingProducer.publishDuePaymentEvent(event);
+    }
+}
+package com.cboard.rental.messaging.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import java.time.LocalDateTime;
+
+@Entity
+@Data
+public class MessageRecord {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String content;
+
+    @Enumerated(EnumType.STRING)
+    private MessageStatus status;
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+package com.cboard.rental.messaging.entity;
+
+public enum MessageStatus {
+    RECEIVED, PROCESSING, COMPLETED, FAILED
+}package com.cboard.rental.messaging.events;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import lombok.Data;
+
+@Data
+public class DuePaymentEvent {
+    private Long tenantId;         // Use Long instead of String for ID
+    private BigDecimal amount;     // Use BigDecimal instead of double for amount
+    private LocalDate scheduledDate; // Use LocalDate instead of String for dates
+}
+package com.cboard.rental.messaging.events;
+
+import lombok.Data;
+
+@Data
+public class NotificationEvent {
+    private String tenantId;
+    private double amountDue;
+    private String dueDate;
+
+    // Constructors, getters, and setters
+}package com.cboard.rental.messaging.events;
+
+import lombok.Data;
+
+@Data
+public class ReminderEvent {
+    private String tenantId;
+    private double amountDue;
+    private String dueDate;
+
+    // Constructors, getters, and setters
+}package com.cboard.rental.messaging.listener;
+
+import com.cboard.rental.messaging.entity.MessageRecord;
+import com.cboard.rental.messaging.entity.MessageStatus;
+import com.cboard.rental.messaging.events.DuePaymentEvent;
+import com.cboard.rental.messaging.repository.MessageRecordRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+
+@Service
+public class DuePaymentEventListener {
+
+    @Autowired
+    private MessageRecordRepository messageRecordRepository;
+
+    @KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
+    @Transactional
+    public void handleDuePaymentEvent(DuePaymentEvent event) {
+    	
+    	 System.out.println("Received DuePaymentEvent in listener: " + event);
+    	
+        // Step 1: Insert a new MessageRecord with status RECEIVED
+        MessageRecord record = new MessageRecord();
+        record.setContent("Due payment for tenant: " + event.getTenantId() + ", Amount: " + event.getAmount());
+        record.setStatus(MessageStatus.RECEIVED);
+        record.setCreatedAt(LocalDateTime.now());
+        record.setUpdatedAt(LocalDateTime.now());
+        
+        System.out.println("To Save DuePaymentEvent: " + record);
+        
+        System.out.println("Attempting to save MessageRecord to DB: " + record);
+        messageRecordRepository.save(record);
+        System.out.println("MessageRecord saved to DB with ID: " + record.getId());
+
+
+        try {
+            // Step 2: Update status to PROCESSING
+            record.setStatus(MessageStatus.PROCESSING);
+            messageRecordRepository.save(record);
+
+            // Step 3: Process the event (e.g., notify tenant)
+            processEvent(event);
+
+            // Step 4: Update status to COMPLETED
+            record.setStatus(MessageStatus.COMPLETED);
+            record.setUpdatedAt(LocalDateTime.now());
+            messageRecordRepository.save(record);
+
+        } catch (Exception e) {
+            // If an error occurs, update status to FAILED
+            record.setStatus(MessageStatus.FAILED);
+            record.setUpdatedAt(LocalDateTime.now());
+            messageRecordRepository.save(record);
+        }
+    }
+
+    private void processEvent(DuePaymentEvent event) {
+        // Simulate processing, e.g., by calling another service or sending a notification
+    }
+}
+
+package com.cboard.rental.messaging.listener;
+
+import com.cboard.rental.messaging.entity.MessageRecord;
+import com.cboard.rental.messaging.entity.MessageStatus;
+import com.cboard.rental.messaging.events.NotificationEvent;
+import com.cboard.rental.messaging.repository.MessageRecordRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class NotificationEventListener {
+
+    @Autowired
+    private MessageRecordRepository messageRecordRepository;
+
+    @KafkaListener(topics = "general-notification-topic", groupId = "notification-group")
+    @Transactional
+    public void handleNotificationEvent(NotificationEvent event) {
+        MessageRecord record = new MessageRecord();
+        record.setContent("Notification for tenant: " + event.getTenantId());
+        record.setStatus(MessageStatus.RECEIVED);
+        messageRecordRepository.save(record);
+
+        try {
+            record.setStatus(MessageStatus.PROCESSING);
+            messageRecordRepository.save(record);
+
+            // Process the event
+            processNotification(event);
+
+            record.setStatus(MessageStatus.COMPLETED);
+            messageRecordRepository.save(record);
+
+        } catch (Exception e) {
+            record.setStatus(MessageStatus.FAILED);
+            messageRecordRepository.save(record);
+        }
+    }
+
+    private void processNotification(NotificationEvent event) {
+        // Implement notification-specific processing
+    }
+}
+package com.cboard.rental.messaging.listener;
+
+import com.cboard.rental.messaging.entity.MessageRecord;
+import com.cboard.rental.messaging.entity.MessageStatus;
+import com.cboard.rental.messaging.events.ReminderEvent;
+import com.cboard.rental.messaging.repository.MessageRecordRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ReminderEventListener {
+
+    @Autowired
+    private MessageRecordRepository messageRecordRepository;
+
+    @KafkaListener(topics = "email-reminder-topic", groupId = "reminder-group")
+    @Transactional
+    public void handleReminderEvent(ReminderEvent event) {
+        MessageRecord record = new MessageRecord();
+        record.setContent("Reminder for tenant: " + event.getTenantId());
+        record.setStatus(MessageStatus.RECEIVED);
+        messageRecordRepository.save(record);
+
+        try {
+            record.setStatus(MessageStatus.PROCESSING);
+            messageRecordRepository.save(record);
+
+            // Process the event
+            processReminder(event);
+
+            record.setStatus(MessageStatus.COMPLETED);
+            messageRecordRepository.save(record);
+
+        } catch (Exception e) {
+            record.setStatus(MessageStatus.FAILED);
+            messageRecordRepository.save(record);
+        }
+    }
+
+    private void processReminder(ReminderEvent event) {
+        // Implement reminder-specific processing
+    }
+}
+package com.cboard.rental.messaging;
+
+import com.cboard.rental.messaging.events.DuePaymentEvent;
+import com.cboard.rental.messaging.events.ReminderEvent;
+import com.cboard.rental.messaging.events.NotificationEvent;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Component;
+
+@Component
+public class MessagingProducer {
+
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    public MessagingProducer(KafkaTemplate<String, Object> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    public void publishDuePaymentEvent(DuePaymentEvent event) {
+        System.out.println("Publishing DuePaymentEvent to Kafka: " + event);
+        kafkaTemplate.send("due-payment-topic", event);
+        kafkaTemplate.flush();
+    }
+
+
+    public void publishEmailReminderEvent(ReminderEvent event) {
+        kafkaTemplate.send("email-reminder-topic", event);
+    }
+
+    public void publishNotificationEvent(NotificationEvent event) {
+        kafkaTemplate.send("general-notification-topic", event);
+    }
+}
+package com.cboard.rental.messaging;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+//import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+
+import java.nio.charset.StandardCharsets;
+
+@SpringBootApplication
+//@EnableDiscoveryClient
+public class MessagingServiceApplication {
+
+    @Autowired
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    private JwtDecoder jwtDecoder;
+
+    public static void main(String[] args) {
+        SpringApplication.run(MessagingServiceApplication.class, args);
+    }
+    
+    public void sendMessage(Object message, String token) {
+        Message<Object> kafkaMessage = MessageBuilder.withPayload(message)
+                .setHeader(KafkaHeaders.TOPIC, "due-payment-topic")
+                .setHeader("Authorization", "Bearer " + token)
+                .build();
+        kafkaTemplate.send(kafkaMessage);
+    }
+    
+    /*@KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
+    public void processMessage(ConsumerRecord<String, Object> record) {
+        Headers headers = record.headers();
+        String token = new String(headers.lastHeader("Authorization").value(), StandardCharsets.UTF_8).replace("Bearer ", "");
+
+        if (validateToken(token)) {
+            // Process the message
+            Object message = record.value();
+            // Perform actions based on the message
+        } else {
+            // Handle invalid token case
+            System.out.println("Invalid JWT token");
+        }
+    }*/
+    
+    
+    @KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
+    public void processMessage(ConsumerRecord<String, Object> record) {
+        try {
+            if (record != null && record.headers() != null) {
+                Header authorizationHeader = record.headers().lastHeader("Authorization");
+                if (authorizationHeader != null) {
+                    String token = new String(authorizationHeader.value(), StandardCharsets.UTF_8);
+                    if (token != null && !token.isEmpty()) {
+                        // Process the message with a valid token
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Handle exception
+        }
+    }
+
+
+
+    private boolean validateToken(String token) {
+        try {
+            Jwt jwt = jwtDecoder.decode(token);
+            // Optional: Additional checks like expiration, issuer, etc.
+            return true;
+        } catch (JwtException e) {
+            System.err.println("Token validation error: " + e.getMessage());
+            return false;
+        }
+    }
+}
+package com.cboard.rental.messaging.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.cboard.rental.messaging.entity.MessageRecord;
+
+public interface MessageRecordRepository extends JpaRepository<MessageRecord, Long> {
+}
+# Application Name
+spring.application.name=messaging-service
+
+# Server Configuration
+server.port=8094
+
+# Logging Configuration
+logging.level.com.cboard=ERROR
+logging.level.com.cboard.rental.messaging.listener.DuePaymentEventListener=DEBUG
+
+# Data Source Configuration
+spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/jsb_cbord_messaging
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+
+# JPA Configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+
+# JWT Configuration
+jwt.secret=4k3AXsvddC06fvwLMtxg/jx99/kc24dV/O0Cybx3gP8=
+jwt.expiration=86400000
+
+# Common Kafka settings
+spring.kafka.bootstrap-servers=localhost:9092
+
+# Producer configuration
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+spring.kafka.producer.enable-idempotence=true
+spring.kafka.producer.acks=all
+spring.kafka.producer.retries=3
+spring.kafka.producer.max-in-flight-requests-per-connection=1
+spring.kafka.producer.request-timeout-ms=30000
+spring.kafka.producer.transaction-id-prefix=messaging-tx-
+
+# Consumer configuration
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+spring.kafka.consumer.properties.spring.deserializer.key.delegate.class=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.properties.spring.deserializer.value.delegate.class=org.springframework.kafka.support.serializer.JsonDeserializer
+spring.kafka.consumer.properties.spring.json.trusted.packages=com.cboard.rental.messaging.events
+spring.kafka.consumer.group-id=messaging-group
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.isolation-level=read-committed
+
+# Listener concurrency
+spring.kafka.listener.concurrency=3
+
+# Log File Location
+logging.file.name=/home/noufal/eclipse-workspace-java/javamserv_fw/messaging.log
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n

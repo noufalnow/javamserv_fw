@@ -36,6 +36,10 @@ public class PaymentSchedule {
 
     @Column(name = "scheduled_date", nullable = false)
     private LocalDate scheduledDate;
+    
+    
+    @Column(name = "status")
+    private String status;  // Ensure this field is available and correctly named
 
     @Column(name = "scheduled_month", nullable = false)
     private LocalDate scheduledMonth;
