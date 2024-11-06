@@ -1,6 +1,7 @@
 package com.cboard.rental.tenants.service;
 
 import com.cboard.rental.tenants.dto.PaymentScheduleDTO;
+import com.cboard.rental.tenants.dto.PaymentScheduleStatusDTO;
 import com.cboard.rental.tenants.entity.PaymentSchedule;
 import com.cboard.rental.tenants.mapper.PaymentScheduleMapper;
 import com.cboard.rental.tenants.repository.PaymentScheduleRepository;
@@ -47,6 +48,21 @@ public class PaymentScheduleService {
         PaymentSchedule updatedPaymentSchedule = repository.save(paymentSchedule);
         return mapper.toDto(updatedPaymentSchedule);
     }
+    
+    public PaymentScheduleDTO updatePaymentScheduleStatus(Long id, String status) {
+        // Check if PaymentSchedule exists
+        PaymentSchedule paymentSchedule = repository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Payment Schedule not found with id: " + id));
+
+        // Update only the payment status
+        paymentSchedule.setStatus(status);
+
+        // Save and return the updated entity
+        PaymentSchedule updatedPaymentSchedule = repository.save(paymentSchedule);
+        return mapper.toDto(updatedPaymentSchedule);
+    }
+
+    
 
     public void deletePaymentSchedule(Long id) {
         if (!repository.existsById(id)) {

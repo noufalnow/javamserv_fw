@@ -58,6 +58,7 @@ public class DuePaymentScheduler {
 
     private DuePaymentEvent createDuePaymentEvent(PaymentSchedule payment) {
         DuePaymentEvent event = new DuePaymentEvent();
+        event.setShdId(payment.getId());
         event.setContractId(payment.getContractId());
         event.setTenantId(payment.getTenant().getId());
         event.setAmount(payment.getAmount());

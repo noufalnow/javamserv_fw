@@ -6,7 +6,9 @@ import lombok.Data;
 
 @Data
 public class DuePaymentEvent {
+	private Long shdId; 
     private Long tenantId;         // Use Long instead of String for ID
     private BigDecimal amount;     // Use BigDecimal instead of double for amount
     private LocalDate scheduledDate; // Use LocalDate instead of String for dates
+    private String token;
 }

@@ -17,6 +17,9 @@ public class JWTService {
     @Value("${jwt.secret}")
     private String SECRET_KEY;
 
+    @Value("${jwt.trusted.issuer}")
+    private String TRUSTED_ISSUER; // Configure this as the issuer for inter-service tokens
+
     // Extract Username
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -28,21 +31,17 @@ public class JWTService {
         return claimsResolver.apply(claims);
     }
 
-    // Validate Token
+    // Validate Token for a Specific User
     public boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
     // Check if Token is Expired
-    /*private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }*/
-
-    // Extract Expiration Date
-    /*public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }*/
+    public boolean isTokenExpired(String token) {
+        Date expiration = extractClaim(token, Claims::getExpiration);
+        return expiration != null && expiration.before(new Date());
+    }
 
     // Extract All Claims
     private Claims extractAllClaims(String token) {
@@ -52,9 +51,15 @@ public class JWTService {
                        .parseClaimsJws(token)
                        .getBody();
         } catch (Exception e) {
-            // Log or handle exception as needed
             throw new IllegalArgumentException("Invalid JWT Token", e);
         }
+    }
+
+    // Method to validate token for inter-service communication
+    public boolean isTrustedServiceToken(String token) {
+        Claims claims = extractAllClaims(token);
+        String issuer = claims.getIssuer();
+        return TRUSTED_ISSUER.equals(issuer) && !isTokenExpired(token); // Valid if issuer matches and token is not expired
     }
 
     public UserDetails extractUserDetails(String token) {
@@ -65,18 +70,8 @@ public class JWTService {
                 .username(username)
                 .password("") // Password is not stored in JWT
                 .roles(roles.stream()
-                    .map(role -> role.replace("ROLE_", "")) // Ensure roles match Spring format
-                    .toArray(String[]::new)) // Convert list to array
+                    .map(role -> role.replace("ROLE_", ""))
+                    .toArray(String[]::new))
                 .build();
-    }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration); // This will now use extractAllClaims
-    }
-
-    public boolean isTokenExpired(String token) {
-        Date expiration = extractClaim(token, Claims::getExpiration);
-        // If expiration is null, assume the token does not expire
-        return expiration != null && expiration.before(new Date());
     }
 }

@@ -8,7 +8,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import com.cboard.rental.tenants.config.JwtAuthenticationFilter;
+import com.cboard.rental.tenants.TenantsServiceApplication.TokenValidator;
 
 @Configuration
 @EnableWebSecurity
@@ -16,9 +16,11 @@ import com.cboard.rental.tenants.config.JwtAuthenticationFilter;
 public class TenantsServiceSecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TokenValidator tokenValidator; // Inject TokenValidator
 
-    public TenantsServiceSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public TenantsServiceSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, TokenValidator tokenValidator) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.tokenValidator = tokenValidator;
     }
 
     @Bean
@@ -28,6 +30,7 @@ public class TenantsServiceSecurityConfig {
             .authorizeRequests()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll() // Permit Swagger
                 .requestMatchers("/property/**").hasRole("ADMIN") // Protect property endpoints for ADMIN role
+                .requestMatchers("/api/v1/acknowledgments").access("@tokenValidator.isTrustedService(request)") // Inter-service validation
                 .anyRequest().authenticated()
             .and()
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter

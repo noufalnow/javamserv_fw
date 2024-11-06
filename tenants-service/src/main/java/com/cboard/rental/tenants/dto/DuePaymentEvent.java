@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class DuePaymentEvent {
+	private Long shdId;
     private Long tenantId;
     private Long contractId;
     private BigDecimal amount;
@@ -14,7 +15,8 @@ public class DuePaymentEvent {
     }
 
     // Parameterized constructor
-    public DuePaymentEvent(Long tenantId, Long contractId, BigDecimal amount, LocalDate scheduledDate) {
+    public DuePaymentEvent(Long shdId, Long tenantId, Long contractId, BigDecimal amount, LocalDate scheduledDate) {
+    	this.shdId = shdId;
         this.tenantId = tenantId;
         this.contractId = contractId;
         this.amount = amount;
@@ -22,6 +24,15 @@ public class DuePaymentEvent {
     }
 
     // Getters and Setters
+    public Long getShdId() {
+        return shdId;
+    }
+    
+    public void setShdId(Long shdId) {
+        this.shdId = shdId;
+    }
+    
+    
     public Long getTenantId() {
         return tenantId;
     }
@@ -58,7 +69,8 @@ public class DuePaymentEvent {
     @Override
     public String toString() {
         return "DuePaymentEvent{" +
-               "tenantId=" + tenantId +
+               "shdId=" + shdId +
+               ", tenantId=" + tenantId +
                ", contractId=" + contractId +
                ", amount=" + amount +
                ", scheduledDate=" + scheduledDate +
