@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import com.cboard.rental.messaging.MessagingProducer;
 
+import java.util.List;
+
 import org.apache.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,13 +23,19 @@ public class DuePaymentController {
     }
 
     @PostMapping("/api/v1/due-payments")
-    public void handleDuePayment(@RequestBody DuePaymentEvent event, HttpServletRequest request) {
+    public void handleDuePayment(@RequestBody List<DuePaymentEvent> events, HttpServletRequest request) {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        String token = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            event.setToken(token);  // assuming DuePaymentEvent has a token field
+            token = authHeader.substring(7);  // Extract the token
         }
-        messagingProducer.publishDuePaymentEvent(event);
+
+        // Loop through the list and set the token for each event, then publish it
+        for (DuePaymentEvent event : events) {
+            event.setToken(token);
+            messagingProducer.publishDuePaymentEvent(event);
+        }
     }
+
 
 }

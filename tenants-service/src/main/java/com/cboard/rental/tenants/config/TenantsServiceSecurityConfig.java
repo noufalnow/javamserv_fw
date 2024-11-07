@@ -30,7 +30,7 @@ public class TenantsServiceSecurityConfig {
             .authorizeRequests()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll() // Permit Swagger
                 .requestMatchers("/property/**").hasRole("ADMIN") // Protect property endpoints for ADMIN role
-                .requestMatchers("/api/v1/acknowledgments").access("@tokenValidator.isTrustedService(request)") // Inter-service validation
+                //.requestMatchers("/api/v1/acknowledgments").access("@tokenValidator.isTrustedService(request)") // Inter-service validation
                 .anyRequest().authenticated()
             .and()
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter

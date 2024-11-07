@@ -1,11 +1,10 @@
 package com.cboard.rental.messaging.listener;
-
+import com.cboard.rental.messaging.DTO.AcknowledgmentDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cboard.rental.messaging.events.DuePaymentEvent;
 import com.cboard.rental.messaging.entity.MessageRecord;
 import com.cboard.rental.messaging.entity.MessageStatus;
-import com.cboard.rental.messaging.events.DuePaymentEvent;
 import com.cboard.rental.messaging.repository.MessageRecordRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -18,8 +17,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class DuePaymentEventListener {
@@ -31,67 +30,70 @@ public class DuePaymentEventListener {
     private RestTemplate restTemplate;
 
     @KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
-    public void handleDuePaymentEvent(DuePaymentEvent event) throws JsonProcessingException {
-        System.out.println("Received DuePaymentEvent in listener: " + event);
+    public void handleDuePaymentEvents(List<DuePaymentEvent> events) {
+        System.out.println("Received list of DuePaymentEvents in listener: " + events);
+        List<AcknowledgmentDTO> acknowledgments = new ArrayList<>();
 
-        // Step 1: Insert a new MessageRecord with status RECEIVED
-        MessageRecord record = new MessageRecord();
-        record.setContent("Due payment for tenant: " + event.getTenantId() + ", Amount: " + event.getAmount());
-        record.setId(event.getShdId());
-        record.setStatus(MessageStatus.RECEIVED);
-        record.setCreatedAt(LocalDateTime.now());
-        record.setUpdatedAt(LocalDateTime.now());
-
-        try {
-            // Step 2: Update status to PROCESSING
-            record.setStatus(MessageStatus.PROCESSING);
-            messageRecordRepository.save(record);
-
-            processEvent(event);
-
-            // Step 4: Update status to COMPLETED
-            record.setStatus(MessageStatus.COMPLETED);
+        for (DuePaymentEvent event : events) {
+            MessageRecord record = new MessageRecord();
+            record.setContent("Due payment for tenant: " + event.getTenantId() + ", Amount: " + event.getAmount());
+            record.setId(event.getShdId());
+            record.setStatus(MessageStatus.RECEIVED);
+            record.setCreatedAt(LocalDateTime.now());
             record.setUpdatedAt(LocalDateTime.now());
-            messageRecordRepository.save(record);
 
-            // Step 5: Send acknowledgment back to tenant-service
-            sendAcknowledgment(record.getId(), "COMPLETED", event.getToken());
+            try {
+                record.setStatus(MessageStatus.PROCESSING);
+                messageRecordRepository.save(record);
 
-        } catch (Exception e) {
-            // If an error occurs, update status to FAILED
-            record.setStatus(MessageStatus.FAILED);
-            record.setUpdatedAt(LocalDateTime.now());
-            messageRecordRepository.save(record);
+                processEvent(event);
 
-            // Send acknowledgment back with FAILED status if processing fails
-            sendAcknowledgment(record.getId(), "FAILED", event.getToken());
+                record.setStatus(MessageStatus.COMPLETED);
+                acknowledgments.add(new AcknowledgmentDTO(record.getId(), "COMPLETED"));
+
+            } catch (Exception e) {
+                record.setStatus(MessageStatus.FAILED);
+                acknowledgments.add(new AcknowledgmentDTO(record.getId(), "FAILED"));
+            } finally {
+                record.setUpdatedAt(LocalDateTime.now());
+                messageRecordRepository.save(record);
+            }
         }
+
+        // Send bulk acknowledgment
+        sendBulkAcknowledgment(acknowledgments, events.get(0).getToken());
     }
 
     private void processEvent(DuePaymentEvent event) {
-        // Simulate processing, e.g., by calling another service or sending a notification
+        // Simulate event processing
     }
 
-    public void sendAcknowledgment(Long messageId, String status, String jwtToken) {
+    public void sendBulkAcknowledgment(List<AcknowledgmentDTO> acknowledgments, String jwtToken) {
         if (jwtToken == null || jwtToken.isEmpty()) {
             System.err.println("JWT token is missing for acknowledgment");
             return;
         }
 
-        // Set Headers
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(jwtToken);
-        System.out.println("Set Authorization header with JWT token.");
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        // Construct the URL with query parameters
-        String callbackUrl = "http://localhost:8093/api/v1/scheduler/acknowledgments?id=" + messageId + "&status=" + status;
-        System.out.println("Sending acknowledgment to URL: " + callbackUrl);
+        // Logging callback URL
+        String callbackUrl = "http://localhost:8093/api/v1/scheduler/acknowledgments";
+        System.out.println("Sending bulk acknowledgment to URL: " + callbackUrl);
 
-        // Create the HttpEntity with headers only (no body needed)
-        HttpEntity<String> requestEntity = new HttpEntity<>(headers);
+        // Convert acknowledgment list to JSON for logging
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonAcknowledgments = mapper.writeValueAsString(acknowledgments);
+            System.out.println("Bulk acknowledgment payload: " + jsonAcknowledgments);
+        } catch (Exception e) {
+            System.err.println("Error converting acknowledgment list to JSON: " + e.getMessage());
+        }
 
-        // Send Request
-        RestTemplate restTemplate = new RestTemplate();
+        // Prepare the request entity
+        HttpEntity<List<AcknowledgmentDTO>> requestEntity = new HttpEntity<>(acknowledgments, headers);
+
         try {
             ResponseEntity<Void> response = restTemplate.exchange(
                 callbackUrl,
@@ -100,16 +102,14 @@ public class DuePaymentEventListener {
                 Void.class
             );
 
-            // Check Response
+            // Check response status
             if (response.getStatusCode().is2xxSuccessful()) {
-                System.out.println("Acknowledgment sent successfully for message ID: " + messageId);
+                System.out.println("Bulk acknowledgment sent successfully.");
             } else {
-                System.err.println("Failed to send acknowledgment for message ID: " + messageId);
-                System.err.println("Response status: " + response.getStatusCode());
+                System.err.println("Failed to send bulk acknowledgment. Response status: " + response.getStatusCode());
             }
         } catch (Exception e) {
-            System.err.println("Exception while sending acknowledgment: " + e.getMessage());
+            System.err.println("Exception while sending bulk acknowledgment: " + e.getMessage());
         }
     }
-
 }
