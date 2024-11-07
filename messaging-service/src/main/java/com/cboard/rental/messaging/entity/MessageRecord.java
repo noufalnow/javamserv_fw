@@ -20,6 +20,10 @@ public class MessageRecord {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private String groupId;
+    private Long shdId;
+    private String topics;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

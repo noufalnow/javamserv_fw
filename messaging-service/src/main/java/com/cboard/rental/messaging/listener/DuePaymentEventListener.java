@@ -37,10 +37,12 @@ public class DuePaymentEventListener {
         for (DuePaymentEvent event : events) {
             MessageRecord record = new MessageRecord();
             record.setContent("Due payment for tenant: " + event.getTenantId() + ", Amount: " + event.getAmount());
-            record.setId(event.getShdId());
+            record.setShdId(event.getShdId());
             record.setStatus(MessageStatus.RECEIVED);
             record.setCreatedAt(LocalDateTime.now());
             record.setUpdatedAt(LocalDateTime.now());
+            record.setTopics("due-payment-topic");
+            record.setGroupId("payment-group");
 
             try {
                 record.setStatus(MessageStatus.PROCESSING);
@@ -49,11 +51,11 @@ public class DuePaymentEventListener {
                 processEvent(event);
 
                 record.setStatus(MessageStatus.COMPLETED);
-                acknowledgments.add(new AcknowledgmentDTO(record.getId(), "COMPLETED"));
+                acknowledgments.add(new AcknowledgmentDTO(record.getShdId(), "COMPLETED"));
 
             } catch (Exception e) {
                 record.setStatus(MessageStatus.FAILED);
-                acknowledgments.add(new AcknowledgmentDTO(record.getId(), "FAILED"));
+                acknowledgments.add(new AcknowledgmentDTO(record.getShdId(), "FAILED"));
             } finally {
                 record.setUpdatedAt(LocalDateTime.now());
                 messageRecordRepository.save(record);
