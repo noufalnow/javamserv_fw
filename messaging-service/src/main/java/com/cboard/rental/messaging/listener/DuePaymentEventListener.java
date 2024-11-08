@@ -5,6 +5,7 @@ import com.cboard.rental.messaging.events.DuePaymentEvent;
 import com.cboard.rental.messaging.entity.MessageRecord;
 import com.cboard.rental.messaging.entity.MessageStatus;
 import com.cboard.rental.messaging.repository.MessageRecordRepository;
+import com.cboard.rental.messaging.service.NotificationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -28,6 +29,9 @@ public class DuePaymentEventListener {
 
     @Autowired
     private RestTemplate restTemplate;
+    
+    @Autowired
+    private NotificationService notificationService;
 
     @KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
     public void handleDuePaymentEvents(List<DuePaymentEvent> events) {
@@ -67,8 +71,18 @@ public class DuePaymentEventListener {
     }
 
     private void processEvent(DuePaymentEvent event) {
-        // Simulate event processing
+        // Build the message
+        String subject = "Payment Due Reminder";
+        String message = "Dear tenant, your payment is due. Please make arrangements by the due date.";
+
+        // Send email
+        if (event.getTenantEmail() != null) {
+            notificationService.sendEmail(event.getTenantEmail(), subject, message);
+        }
+        
+        // You can expand to SMS in future phases
     }
+
 
     public void sendBulkAcknowledgment(List<AcknowledgmentDTO> acknowledgments, String jwtToken) {
         if (jwtToken == null || jwtToken.isEmpty()) {
