@@ -9,6 +9,7 @@ import com.cboard.rental.messaging.service.NotificationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
@@ -31,6 +32,9 @@ public class DuePaymentEventListener {
     private RestTemplate restTemplate;
     
     @Autowired
+    private KafkaTemplate kafkaTemplate;
+    
+    @Autowired
     private NotificationService notificationService;
 
     @KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
@@ -50,7 +54,7 @@ public class DuePaymentEventListener {
 
             try {
                 record.setStatus(MessageStatus.PROCESSING);
-                messageRecordRepository.save(record);
+                //messageRecordRepository.save(record);
 
                 processEvent(event);
 
@@ -62,12 +66,12 @@ public class DuePaymentEventListener {
                 acknowledgments.add(new AcknowledgmentDTO(record.getShdId(), "FAILED"));
             } finally {
                 record.setUpdatedAt(LocalDateTime.now());
-                messageRecordRepository.save(record);
+                //messageRecordRepository.save(record);
             }
         }
 
         // Send bulk acknowledgment
-        sendBulkAcknowledgment(acknowledgments, events.get(0).getToken());
+        //sendBulkAcknowledgment(acknowledgments, events.get(0).getToken());
     }
 
     private void processEvent(DuePaymentEvent event) {
@@ -79,6 +83,8 @@ public class DuePaymentEventListener {
         if (event.getTenantEmail() != null) {
             notificationService.sendEmail(event.getTenantEmail(), subject, message);
         }
+        
+        kafkaTemplate.send("payments-requests", event);
         
         // You can expand to SMS in future phases
     }

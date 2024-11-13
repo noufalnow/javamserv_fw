@@ -4,6 +4,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 //import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 
 @SpringBootApplication
+@EnableFeignClients
 //@EnableDiscoveryClient
 public class MessagingServiceApplication {
 
@@ -45,7 +47,7 @@ public class MessagingServiceApplication {
 
     
     // Listener to process incoming messages on the specified topic
-    @KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
+    /*@KafkaListener(topics = "due-payment-topic", groupId = "payment-group")
     public void processMessage(ConsumerRecord<String, Object> record) {
         try {
             if (record != null && record.headers() != null) {
@@ -68,7 +70,7 @@ public class MessagingServiceApplication {
             System.err.println("Error processing message: " + e.getMessage());
             e.printStackTrace();
         }
-    }
+    }*/
 
     // Method to handle the actual business logic for the incoming message
     private void handleMessage(Object message) {
