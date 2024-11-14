@@ -1,11 +1,5 @@
 FROM openjdk:17-jdk-slim
-
 WORKDIR /app
-
-COPY target/*.jar app.jar
-
-# Expose the port your Spring Boot app uses
-EXPOSE 8093
-
+COPY target/tenants-service-0.0.1-SNAPSHOT.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
 

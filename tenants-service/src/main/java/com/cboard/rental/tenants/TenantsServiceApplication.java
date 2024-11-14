@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.cboard.rental.tenants.config.JWTService;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 
 @SpringBootApplication
@@ -36,5 +37,15 @@ public class TenantsServiceApplication {
 			return false;
 		}
 	}
+	
+	@PostConstruct
+	public void init() {
+	    System.out.println("SPRING_DATASOURCE_URL: " + System.getenv("SPRING_DATASOURCE_URL"));
+	    System.out.println("SPRING_DATASOURCE_USERNAME: " + System.getenv("SPRING_DATASOURCE_USERNAME"));
+	    System.out.println("SPRING_DATASOURCE_PASSWORD: " + System.getenv("SPRING_DATASOURCE_PASSWORD"));
+	}
+
 
 }
+
+

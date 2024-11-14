@@ -6,7 +6,6 @@ import com.cboard.rental.tenants.entity.PaymentSchedule;
 import com.cboard.rental.tenants.mapper.PaymentScheduleMapper;
 import com.cboard.rental.tenants.repository.PaymentScheduleRepository;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,7 +16,6 @@ public class PaymentScheduleService {
     private final PaymentScheduleRepository repository;
     private final PaymentScheduleMapper mapper;
 
-    @Autowired
     public PaymentScheduleService(PaymentScheduleRepository repository, PaymentScheduleMapper mapper) {
         this.repository = repository;
         this.mapper = mapper;

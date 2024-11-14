@@ -1,13 +1,16 @@
 package com.cboard.rental.property;
 
-import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class PropertyServiceApplicationTests {
+import com.cboard.rental.tenants.TenantsServiceApplication;
 
-	@Test
-	void contextLoads() {
-	}
+import org.junit.jupiter.api.Test;
+
+@SpringBootTest(classes = TenantsServiceApplication.class) // Replace with your main application class
+public class PropertyServiceApplicationTests {
+
+    @Test
+    void contextLoads() {
+    }
 
 }

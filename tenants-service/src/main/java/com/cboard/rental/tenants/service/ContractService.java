@@ -27,7 +27,8 @@ public class ContractService {
     @Autowired
     private PropertyServiceClient propertyServiceClient;
 
-    private final ContractMapper mapper = ContractMapper.INSTANCE;
+    @Autowired
+    private ContractMapper contractMapper;  // Inject the contractMapper
 
     public ContractDTO createContract(ContractDTO contractDTO) {
         // Validate tenant
@@ -40,12 +41,12 @@ public class ContractService {
             throw new ResourceNotFoundException("Property", contractDTO.getPropertyId());
         }
 
-        Contract contract = mapper.toEntity(contractDTO);
+        Contract contract = contractMapper.toEntity(contractDTO);
         contract.setTenant(tenant);
         contract.setCreatedAt(LocalDateTime.now());
 
         Contract savedContract = contractRepository.save(contract);
-        return mapper.toDTO(savedContract);
+        return contractMapper.toDTO(savedContract);
     }
 
     public List<ContractDTO> getAllContracts(Long tenantId, Long propertyId) {
@@ -62,7 +63,7 @@ public class ContractService {
         }
 
         return contracts.stream()
-                .map(mapper::toDTO)
+                .map(contractMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
@@ -71,18 +72,18 @@ public class ContractService {
     public ContractDTO getContractById(Long id) {
         Contract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contract", id));
-        return mapper.toDTO(contract);
+        return contractMapper.toDTO(contract);
     }
 
     public List<ContractDTO> getContractsByTenantId(Long tenantId) {
         return contractRepository.findByTenantId(tenantId).stream()
-                .map(mapper::toDTO)
+                .map(contractMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
     public List<ContractDTO> getContractsByPropertyId(Long propertyId) {
         return contractRepository.findByPropertyId(propertyId).stream()
-                .map(mapper::toDTO)
+                .map(contractMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
@@ -101,7 +102,7 @@ public class ContractService {
         contract.setUpdatedAt(LocalDateTime.now());
 
         Contract updatedContract = contractRepository.save(contract);
-        return mapper.toDTO(updatedContract);
+        return contractMapper.toDTO(updatedContract);
     }
 
     public void deleteContract(Long id) {

@@ -30,7 +30,9 @@ public class TenantsController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'LANDLORD')")
     public ResponseEntity<List<TenantsDTO>> getAllTenants() {
-        return ResponseEntity.ok(tenantsService.getAllTenants());
+        List<TenantsDTO> tenants = tenantsService.getAllTenants();
+        logger.info("Retrieved tenants: {}", tenants); // Log the tenants list before returning
+        return ResponseEntity.ok(tenants);
     }
 
     @GetMapping("/{id}")

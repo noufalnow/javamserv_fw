@@ -2,39 +2,51 @@ package com.cboard.rental.tenants.mapper;
 
 import com.cboard.rental.tenants.dto.PaymentScheduleDTO;
 import com.cboard.rental.tenants.entity.PaymentSchedule;
-import com.cboard.rental.tenants.entity.Tenants;
-import com.cboard.rental.tenants.repository.TenantsRepository;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", uses = {TenantIdMapper.class})
-public interface PaymentScheduleMapper {
-
-    @Mapping(source = "tenant.id", target = "tenantId")
-    PaymentScheduleDTO toDto(PaymentSchedule paymentSchedule);
-
-    @Mapping(source = "tenantId", target = "tenant")
-    PaymentSchedule toEntity(PaymentScheduleDTO paymentScheduleDTO);
-
-    List<PaymentScheduleDTO> toDtoList(List<PaymentSchedule> paymentSchedules);
-}
-
-// Custom Mapper to resolve tenant by ID
 @Component
-class TenantIdMapper {
-    
-    @Autowired
-    private TenantsRepository tenantsRepository;
+public class PaymentScheduleMapper {
 
-    public Tenants mapTenantIdToTenant(Long tenantId) {
-        return tenantId != null ? tenantsRepository.findById(tenantId).orElse(null) : null;
+    public PaymentScheduleDTO toDto(PaymentSchedule paymentSchedule) {
+        if (paymentSchedule == null) {
+            return null;
+        }
+        
+        PaymentScheduleDTO dto = new PaymentScheduleDTO();
+        dto.setId(paymentSchedule.getId());
+        dto.setAmount(paymentSchedule.getAmount());
+        dto.setBankId(paymentSchedule.getBankId());
+        dto.setChequeNumber(paymentSchedule.getChequeNumber());
+        dto.setScheduledDate(paymentSchedule.getScheduledDate());
+        dto.setScheduledMonth(paymentSchedule.getScheduledMonth());
+        dto.setPaymentDate(paymentSchedule.getPaymentDate());
+        dto.setPaymentStatus(paymentSchedule.getPaymentStatus());
+        // Map other fields as needed
+        return dto;
     }
 
-    public Long mapTenantToTenantId(Tenants tenant) {
-        return tenant != null ? tenant.getId() : null;
+    public PaymentSchedule toEntity(PaymentScheduleDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        
+        PaymentSchedule paymentSchedule = new PaymentSchedule();
+        paymentSchedule.setId(dto.getId());
+        paymentSchedule.setAmount(dto.getAmount());
+        paymentSchedule.setBankId(dto.getBankId());
+        paymentSchedule.setChequeNumber(dto.getChequeNumber());
+        paymentSchedule.setScheduledDate(dto.getScheduledDate());
+        paymentSchedule.setScheduledMonth(dto.getScheduledMonth());
+        paymentSchedule.setPaymentDate(dto.getPaymentDate());
+        paymentSchedule.setPaymentStatus(dto.getPaymentStatus());
+        // Map other fields as needed
+        return paymentSchedule;
+    }
+
+    public List<PaymentScheduleDTO> toDtoList(List<PaymentSchedule> paymentSchedules) {
+        return paymentSchedules.stream().map(this::toDto).collect(Collectors.toList());
     }
 }

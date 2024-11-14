@@ -1,6 +1,7 @@
 package com.cboard.rental.tenants.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.cboard.rental.tenants.config.ResourceNotFoundException;
 import com.cboard.rental.tenants.dto.TenantsDTO;
@@ -15,35 +16,70 @@ import java.util.stream.Collectors;
 @Service
 public class TenantsService {
 
-    @Autowired
-    private TenantsRepository tenantsRepository;
+    private static final Logger logger = LoggerFactory.getLogger(TenantsService.class);
 
-    private final TenantsMapper mapper = TenantsMapper.INSTANCE;
+    private final TenantsRepository tenantsRepository;
+    private final TenantsMapper tenantsMapper;
+
+    public TenantsService(TenantsRepository tenantsRepository, TenantsMapper tenantsMapper) {
+        this.tenantsRepository = tenantsRepository;
+        this.tenantsMapper = tenantsMapper;
+    }
 
     public TenantsDTO createTenant(TenantsDTO tenantsDTO) {
-        Tenants tenant = mapper.toEntity(tenantsDTO);
+        Tenants tenant = tenantsMapper.toEntity(tenantsDTO);
         tenant.setCreatedAt(LocalDateTime.now());
         Tenants savedTenant = tenantsRepository.save(tenant);
-        return mapper.toDTO(savedTenant);
+        return tenantsMapper.toDTO(savedTenant);
+    }
+    
+    
+    public TenantsDTO testMapping(Tenants tenant) {
+        TenantsDTO dto = new TenantsDTO();
+        dto.setId(tenant.getId());
+        dto.setFullName(tenant.getFullName());
+        dto.setCompanyName(tenant.getCompanyName());
+        dto.setPhone(tenant.getPhone());
+        dto.setEmail(tenant.getEmail());
+        dto.setIdNo(tenant.getIdNo());
+        dto.setCreatedAt(tenant.getCreatedAt());
+        dto.setUpdatedAt(tenant.getUpdatedAt());
+        logger.debug("Manual mapping result: {}", dto);
+        return dto;
+    }
+
+    public List<TenantsDTO> getAllTenantsWithTestMapping() {
+        List<Tenants> tenants = tenantsRepository.findAll();
+        return tenants.stream()
+            .map(tenant -> {
+                TenantsDTO dto = testMapping(tenant); // Use the test mapping method here
+                logger.info("Manual mapping tenant: {} to DTO: {}", tenant, dto);
+                return dto;
+            })
+            .collect(Collectors.toList());
     }
 
     public List<TenantsDTO> getAllTenants() {
-        return tenantsRepository.findAll().stream()
-                .map(mapper::toDTO)
-                .collect(Collectors.toList());
+        List<Tenants> tenants = tenantsRepository.findAll();
+        return tenants.stream()
+            .map(tenant -> {
+                TenantsDTO dto = tenantsMapper.toDTO(tenant);
+                logger.info("Mapping tenant: {} to DTO: {}", tenant, dto);
+                return dto;
+            })
+            .collect(Collectors.toList());
     }
 
     public TenantsDTO getTenantById(Long id) {
         Tenants tenant = tenantsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant", id));
-        return mapper.toDTO(tenant);
+        return tenantsMapper.toDTO(tenant);
     }
 
     public TenantsDTO updateTenant(Long id, TenantsDTO tenantsDTO) {
         Tenants tenant = tenantsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant", id));
 
-        // Update tenant fields
         tenant.setFullName(tenantsDTO.getFullName());
         tenant.setCompanyName(tenantsDTO.getCompanyName());
         tenant.setPhone(tenantsDTO.getPhone());
@@ -52,7 +88,7 @@ public class TenantsService {
         tenant.setUpdatedAt(LocalDateTime.now());
 
         Tenants updatedTenant = tenantsRepository.save(tenant);
-        return mapper.toDTO(updatedTenant);
+        return tenantsMapper.toDTO(updatedTenant);
     }
 
     public void deleteTenant(Long id) {

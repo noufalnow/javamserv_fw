@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 @FeignClient(name = "property-service", configuration = FeignConfig.class)
 public interface PropertyServiceClient {
     @GetMapping("/properties/{propertyId}/exists")
-    Boolean doesPropertyExist(@PathVariable("propertyId") Long propertyId);
+    Boolean doesPropertyExist(@PathVariable Long propertyId);
 }
 
