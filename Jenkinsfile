@@ -1,52 +1,36 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_REGISTRY = "your-docker-registry" // Replace with your Docker registry
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://your-repo-url.git'
+                checkout scm
             }
         }
 
-        stage('Build and Deploy Messaging Service') {
+        stage('Build and Deploy Services') {
             steps {
-                dir('messaging-service') {
-                    sh 'mvn clean install'
-                    sh 'docker build -t messaging-service:latest .'
-                    sh 'docker tag messaging-service:latest ${DOCKER_REGISTRY}/messaging-service:latest'
-                    sh 'docker push ${DOCKER_REGISTRY}/messaging-service:latest'
-                    sh 'docker stop messaging-service || true && docker rm messaging-service || true'
-                    sh 'docker run -d -p 8094:8094 --name messaging-service ${DOCKER_REGISTRY}/messaging-service:latest'
-                }
-            }
-        }
+                script {
+                    // Define services and their configurations
+                    def services = [
+                        [name: 'messaging-service', port: 8094],
+                        [name: 'tenants-service', port: 8093],
+                        [name: 'payments-service', port: 8095]
+                    ]
 
-        stage('Build and Deploy Tenants Service') {
-            steps {
-                dir('tenants-service') {
-                    sh 'mvn clean install'
-                    sh 'docker build -t tenants-service:latest .'
-                    sh 'docker tag tenants-service:latest ${DOCKER_REGISTRY}/tenants-service:latest'
-                    sh 'docker push ${DOCKER_REGISTRY}/tenants-service:latest'
-                    sh 'docker stop tenants-service || true && docker rm tenants-service || true'
-                    sh 'docker run -d -p 8093:8093 --name tenants-service ${DOCKER_REGISTRY}/tenants-service:latest'
-                }
-            }
-        }
-
-        stage('Build and Deploy Payments Service') {
-            steps {
-                dir('payments-service') {
-                    sh 'mvn clean install'
-                    sh 'docker build -t payments-service:latest .'
-                    sh 'docker tag payments-service:latest ${DOCKER_REGISTRY}/payments-service:latest'
-                    sh 'docker push ${DOCKER_REGISTRY}/payments-service:latest'
-                    sh 'docker stop payments-service || true && docker rm payments-service || true'
-                    sh 'docker run -d -p 8095:8095 --name payments-service ${DOCKER_REGISTRY}/payments-service:latest'
+                    // Build and deploy each service
+                    for (service in services) {
+                        dir(service.name) {
+                            echo "Building and Deploying ${service.name}..."
+                            sh """
+                                mvn clean install
+                                docker build -t ${service.name}:latest .
+                                docker stop ${service.name} || true
+                                docker rm ${service.name} || true
+                                docker run -d --restart=always -p ${service.port}:${service.port} --name ${service.name} ${service.name}:latest
+                            """
+                        }
+                    }
                 }
             }
         }
@@ -54,13 +38,13 @@ pipeline {
 
     post {
         always {
-            echo 'Pipeline completed.'
+            echo 'Pipeline execution completed.'
         }
         success {
-            echo 'All services built and deployed successfully.'
+            echo 'All services were built and deployed successfully.'
         }
         failure {
-            echo 'One or more services failed to build or deploy.'
+            echo 'Pipeline failed during the build or deployment process.'
         }
     }
 }
