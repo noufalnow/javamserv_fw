@@ -54,7 +54,7 @@ public class DuePaymentEventListener {
 
             try {
                 record.setStatus(MessageStatus.PROCESSING);
-                //messageRecordRepository.save(record);
+                messageRecordRepository.save(record);
 
                 processEvent(event);
 
@@ -66,12 +66,12 @@ public class DuePaymentEventListener {
                 acknowledgments.add(new AcknowledgmentDTO(record.getShdId(), "FAILED"));
             } finally {
                 record.setUpdatedAt(LocalDateTime.now());
-                //messageRecordRepository.save(record);
+                messageRecordRepository.save(record);
             }
         }
 
         // Send bulk acknowledgment
-        //sendBulkAcknowledgment(acknowledgments, events.get(0).getToken());
+        sendBulkAcknowledgment(acknowledgments, events.get(0).getToken());
     }
 
     private void processEvent(DuePaymentEvent event) {
@@ -101,7 +101,7 @@ public class DuePaymentEventListener {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         // Logging callback URL
-        String callbackUrl = "http://localhost:8093/api/v1/scheduler/acknowledgments";
+        String callbackUrl = "http://192.168.21.54:8093/api/v1/scheduler/acknowledgments";
         System.out.println("Sending bulk acknowledgment to URL: " + callbackUrl);
 
         // Convert acknowledgment list to JSON for logging

@@ -1,10 +1,10 @@
-package com.cboard.rental.property;
+package com.cboard.rental.gateway;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class PropertyServiceApplicationTests {
+class MessagingServiceApplication {
 
 	@Test
 	void contextLoads() {
