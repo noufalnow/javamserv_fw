@@ -3,6 +3,12 @@
         <destination>192.168.21.54:5044</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <customFields>{"service":"tenants-service"}</customFields>
+            <fieldNames>
+		        <timestamp>time</timestamp>
+		        <level>severity</level>
+		        <logger>source</logger>
+		        <message>message</message>
+		    </fieldNames>
         </encoder>
     </appender>
 
