@@ -3,6 +3,7 @@ package com.cboard.ast.data.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,9 @@ public class PhpSyncService {
     @Autowired
     private ObjectMapper objectMapper; // Use ObjectMapper for raw JSON serialization
 
+    // API Key for authentication
+    private static final String API_KEY = "YOUR_API_KEY_HERE";
+
     /**
      * Sends data to a PHP server for synchronization.
      *
@@ -30,7 +34,7 @@ public class PhpSyncService {
      * @return a list of successfully synchronized primary key IDs.
      */
     public List<Long> sendToPhpServer(String tableName, String primaryKey, List<Map<String, Object>> rows) {
-        String url = "http://localhost/phpsynch.php";
+        String url = "https://astglobal.om/phpsynch.php";
 
         // Prepare the payload
         Map<String, Object> payload = new HashMap<>();
@@ -38,14 +42,19 @@ public class PhpSyncService {
         payload.put("primaryKey", primaryKey);
         payload.put("rows", rows);
 
-        //rows.forEach(row -> System.out.println("Fetched row: " + row));
-
         try {
             // Convert the payload to raw JSON
             String rawJson = objectMapper.writeValueAsString(payload);
 
-            // Send the raw JSON as the request body
-            HttpEntity<String> request = new HttpEntity<>(rawJson);
+            // Set headers with the API key
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + API_KEY);
+            headers.set("Content-Type", "application/json");
+
+            // Create the HTTP entity with headers and payload
+            HttpEntity<String> request = new HttpEntity<>(rawJson, headers);
+
+            // Send the request to the PHP server
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {

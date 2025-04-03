@@ -21,9 +21,9 @@ public class SyncService {
     private JdbcSyncService jdbcSyncService;
 
     /**
-     * Scheduled method to synchronize data every 5 minutes.
+     * Scheduled method to synchronize data every 5 hours.
      */
-    @Scheduled(cron = "0 0 0/5 * * ?") // Runs every 5 minutes
+    @Scheduled(cron = "0 0 0/5 * * ?") // Runs every 5 hours
     public void syncData() {
         // Fetch table metadata (table names and primary keys)
         List<Map<String, Object>> tables = tableMetadataService.fetchTableMetadata();

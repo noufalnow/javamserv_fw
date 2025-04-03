@@ -1,6 +1,6 @@
 <configuration>
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>192.168.217.54:5044</destination>
+        <destination>192.168.251.54:5044</destination>
 		<encoder class="net.logstash.logback.encoder.LogstashEncoder">
 		    <customFields>{"service":"messaging-service"}</customFields>
 		    <fieldNames>

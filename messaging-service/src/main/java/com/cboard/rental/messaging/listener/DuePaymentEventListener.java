@@ -101,7 +101,7 @@ public class DuePaymentEventListener {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         // Logging callback URL
-        String callbackUrl = "http://192.168.217.54:8093/api/v1/scheduler/acknowledgments";
+        String callbackUrl = "http://192.168.251.54:8093/api/v1/scheduler/acknowledgments";
         System.out.println("Sending bulk acknowledgment to URL: " + callbackUrl);
 
         // Convert acknowledgment list to JSON for logging

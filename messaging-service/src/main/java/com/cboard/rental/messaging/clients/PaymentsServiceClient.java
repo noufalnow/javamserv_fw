@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.List;
 
-@FeignClient(name = "payments-service", url = "http://192.168.217.54:8095")
+@FeignClient(name = "payments-service", url = "http://192.168.251.54:8095")
 public interface PaymentsServiceClient {
 
     @PostMapping("/payments/api/v1/add-due")
